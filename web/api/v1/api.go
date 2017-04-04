@@ -30,6 +30,7 @@ import (
 
 	"github.com/prometheus/prometheus/promql"
 	"github.com/prometheus/prometheus/retrieval"
+	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/storage/local"
 	"github.com/prometheus/prometheus/storage/metric"
 	"github.com/prometheus/prometheus/util/httputil"
@@ -50,6 +51,7 @@ const (
 	errorCanceled           = "canceled"
 	errorExec               = "execution"
 	errorBadData            = "bad_data"
+	errorInternal           = "internal"
 )
 
 var corsHeaders = map[string]string{
@@ -194,6 +196,8 @@ func (api *API) query(r *http.Request) (interface{}, *apiError) {
 			return nil, &apiError{errorCanceled, res.Err}
 		case promql.ErrQueryTimeout:
 			return nil, &apiError{errorTimeout, res.Err}
+		case storage.InternalError:
+			return nil, &apiError{errorInternal, res.Err}
 		}
 		return nil, &apiError{errorExec, res.Err}
 	}
@@ -459,6 +463,8 @@ func respondError(w http.ResponseWriter, apiErr *apiError, data interface{}) {
 		code = 422
 	case errorCanceled, errorTimeout:
 		code = http.StatusServiceUnavailable
+	case errorInternal:
+		code = http.StatusInternalServerError
 	default:
 		code = http.StatusInternalServerError
 	}
